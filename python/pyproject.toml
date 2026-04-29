@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hubcli-worker"
+version = "0.1.0"
+description = "Python worker package for hubcli"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.27.0",
+    "minio>=7.2.7",
+    "paho-mqtt>=2.1.0",
+    "pika>=1.3.2",
+    "PyMySQL>=1.1.1",
+    "sqlparse>=0.5.1",
+]

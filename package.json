@@ -1,0 +1,37 @@
+{
+  "name": "hubcli",
+  "version": "0.1.0",
+  "description": "A unified CLI shell powered by Node.js and Python workers.",
+  "bin": {
+    "hubcli": "./bin/hubcli.js"
+  },
+  "type": "module",
+  "files": [
+    "bin",
+    "src",
+    "python/hubcli_worker/**/*.py",
+    "python/hubcli_worker/vendor/arthas/**",
+    "python/pyproject.toml",
+    "examples",
+    "README.md",
+    "README.zh-CN.md",
+    "CLAUDE.md"
+  ],
+  "scripts": {
+    "dev": "node ./bin/hubcli.js",
+    "test:help": "node ./bin/hubcli.js --help && node ./bin/hubcli.js xmind --help && node ./bin/hubcli.js md --help && node ./bin/hubcli.js doctor --help && node ./bin/hubcli.js arthas --help && node ./bin/hubcli.js rabbitmq --help && node ./bin/hubcli.js rabbitmq queue --help && node ./bin/hubcli.js rocketmq4 --help && node ./bin/hubcli.js rocketmq4 topic --help && node ./bin/hubcli.js rocketmq4 message --help && node ./bin/hubcli.js mqtt --help && node ./bin/hubcli.js mqtt publish --help && node ./bin/hubcli.js mqtt subscribe --help && node ./bin/hubcli.js mqtt session --help && node ./bin/hubcli.js mqtt retained --help && node ./bin/hubcli.js minio --help && node ./bin/hubcli.js minio bucket --help && node ./bin/hubcli.js minio object --help && node ./bin/hubcli.js nacos --help && node ./bin/hubcli.js nacos namespace --help && node ./bin/hubcli.js nacos config --help && node ./bin/hubcli.js mysql --help && node ./bin/hubcli.js mysql database --help && node ./bin/hubcli.js mysql query --help",
+    "doctor": "node ./bin/hubcli.js doctor",
+    "postinstall": "node ./src/postinstall.js",
+    "release:windows": "powershell -ExecutionPolicy Bypass -File ./packaging/windows/build-release.ps1"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "^14.0.1",
+    "marked": "^16.4.1",
+    "mermaid": "^11.12.0",
+    "picocolors": "^1.1.1",
+    "playwright": "^1.55.1"
+  }
+}
