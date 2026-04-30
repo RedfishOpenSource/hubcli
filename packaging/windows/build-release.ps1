@@ -1,5 +1,5 @@
 param(
-    [string]$Version = "0.1.0",
+    [string]$Version,
     [string]$NodeVersion = "20.19.0",
     [string]$StageRoot = "release/stage/windows-x64",
     [string]$DistRoot = "release/dist",
@@ -10,6 +10,16 @@ param(
 $ErrorActionPreference = "Stop"
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "../..")).Path
+$packageJsonPath = Join-Path $projectRoot "package.json"
+$packageJson = Get-Content -Raw -Path $packageJsonPath | ConvertFrom-Json
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = $packageJson.version
+}
+
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    throw "Unable to determine release version from $packageJsonPath"
+}
 $stageRootPath = Join-Path $projectRoot $StageRoot
 $distRootPath = Join-Path $projectRoot $DistRoot
 $workerDistPath = Join-Path $projectRoot "dist/hubcli-worker"
@@ -17,7 +27,6 @@ $workerSpecPath = Join-Path $projectRoot "packaging/python/hubcli-worker.spec"
 $nodeZipPath = Join-Path $distRootPath "node-v$NodeVersion-win-x64.zip"
 $nodeUrl = "https://nodejs.org/dist/v$NodeVersion/node-v$NodeVersion-win-x64.zip"
 $portableName = "hubcli-windows-x64-portable.zip"
-$installerName = "hubcli-windows-x64-setup.exe"
 $playwrightPath = Join-Path $projectRoot "ms-playwright"
 
 New-Item -ItemType Directory -Force -Path $distRootPath | Out-Null
@@ -73,11 +82,6 @@ try {
     Compress-Archive -Path (Join-Path $stageRootPath "*") -DestinationPath (Join-Path $distRootPath $portableName) -Force
 
     & $IsccExe "/DAppVersion=$Version" "/DStageRoot=$stageRootPath" "/DOutputDir=$distRootPath" (Join-Path $projectRoot "packaging/windows/hubcli.iss")
-
-    $generatedInstaller = Join-Path $distRootPath "hubcli-setup.exe"
-    if (Test-Path $generatedInstaller) {
-        Move-Item $generatedInstaller (Join-Path $distRootPath $installerName) -Force
-    }
 }
 finally {
     Remove-Item Env:PLAYWRIGHT_BROWSERS_PATH -ErrorAction SilentlyContinue

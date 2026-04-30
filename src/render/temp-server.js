@@ -8,18 +8,50 @@ const CONTENT_TYPES = new Map([
   ['.mjs', 'text/javascript; charset=utf-8'],
   ['.css', 'text/css; charset=utf-8'],
   ['.svg', 'image/svg+xml'],
-  ['.json', 'application/json; charset=utf-8']
+  ['.json', 'application/json; charset=utf-8'],
+  ['.png', 'image/png'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.gif', 'image/gif'],
+  ['.webp', 'image/webp'],
+  ['.bmp', 'image/bmp']
 ]);
 
-export async function startStaticServer(rootDirectory) {
+function getContentType(filePath) {
+  return CONTENT_TYPES.get(path.extname(filePath).toLowerCase()) ?? 'application/octet-stream';
+}
+
+function resolveDocumentPath(rootDirectory, pathname) {
+  const relativePath = decodeURIComponent(pathname === '/' ? '/document.html' : pathname);
+  return path.join(rootDirectory, relativePath);
+}
+
+function resolveAssetPath(assetRootDirectory, requestedPath) {
+  if (!assetRootDirectory || !requestedPath) {
+    return null;
+  }
+
+  return path.isAbsolute(requestedPath)
+    ? requestedPath
+    : path.resolve(assetRootDirectory, requestedPath);
+}
+
+export async function startStaticServer(rootDirectory, options = {}) {
+  const assetRootDirectory = options.assetRootDirectory;
+
   const server = http.createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-      const relativePath = decodeURIComponent(url.pathname === '/' ? '/document.html' : url.pathname);
-      const filePath = path.join(rootDirectory, relativePath);
+      const filePath = url.pathname === '/__hubcli_asset__'
+        ? resolveAssetPath(assetRootDirectory, url.searchParams.get('path'))
+        : resolveDocumentPath(rootDirectory, url.pathname);
+
+      if (!filePath) {
+        throw new Error('Asset path is missing.');
+      }
+
       const contents = await readFile(filePath);
-      const contentType = CONTENT_TYPES.get(path.extname(filePath)) ?? 'application/octet-stream';
-      response.writeHead(200, { 'Content-Type': contentType });
+      response.writeHead(200, { 'Content-Type': getContentType(filePath) });
       response.end(contents);
     } catch {
       response.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });

@@ -53,6 +53,8 @@ Download one of these artifacts from GitHub Releases:
 - `hubcli-windows-x64-setup.exe` — installs `hubcli` and can add it to `PATH`
 - `hubcli-windows-x64-portable.zip` — unzip and run `hubcli.cmd`
 
+For these Windows release artifacts, most commands do not require a local Node.js or Python installation.
+
 Release builds bundle:
 
 - Node.js runtime
@@ -67,6 +69,7 @@ After install, verify with:
 ```bash
 hubcli --help
 hubcli doctor
+hubcli md --help
 ```
 
 ### Run from source
@@ -86,14 +89,33 @@ npx playwright install chromium
 hubcli doctor
 ```
 
+This install mode still requires local Python `3.11+` on `PATH` and the Python dependencies declared in `python/pyproject.toml`.
+
 ### Global install from a local tarball
 
 ```bash
 npm pack
-npm install -g ./hubcli-0.1.0.tgz
+npm install -g ./hubcli-<version>.tgz
 npx playwright install chromium
 hubcli doctor
 ```
+
+This install mode still requires local Python `3.11+` on `PATH` and the Python dependencies declared in `python/pyproject.toml`.
+
+### Build the Windows installer
+
+On a Windows release machine with PowerShell, Python `3.11+`, and Inno Setup (`iscc`) available on `PATH`:
+
+```powershell
+npm run release:windows
+```
+
+Artifacts are written to `release/dist/`:
+
+- `hubcli-windows-x64-setup.exe`
+- `hubcli-windows-x64-portable.zip`
+
+The release build bundles the Node.js runtime, the PyInstaller-built Python worker, Playwright Chromium, and Arthas assets.
 
 ## Uninstall and Repack
 
@@ -111,7 +133,7 @@ This removes both registry installs and installs created from a local `.tgz` pac
 npm pack
 ```
 
-The generated tarball is written to the project root, for example `hubcli-0.1.0.tgz`.
+The generated tarball is written to the project root, for example `hubcli-<version>.tgz`.
 
 ## Quick Start
 

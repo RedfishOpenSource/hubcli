@@ -8,6 +8,9 @@
 #ifndef OutputDir
   #define OutputDir "release/dist"
 #endif
+#ifndef OutputBaseFilename
+  #define OutputBaseFilename "hubcli-windows-x64-setup"
+#endif
 
 [Setup]
 AppId={{F6D3E8D2-574D-4A17-B917-B71A18B3A222}
@@ -17,7 +20,7 @@ DefaultDirName={autopf}\hubcli
 DefaultGroupName=hubcli
 UninstallDisplayIcon={app}\hubcli.cmd
 OutputDir={#OutputDir}
-OutputBaseFilename=hubcli-setup
+OutputBaseFilename={#OutputBaseFilename}
 Compression=lzma
 SolidCompression=yes
 ArchitecturesInstallIn64BitMode=x64compatible
@@ -29,7 +32,7 @@ ChangesEnvironment=yes
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "addtopath"; Description: "Add hubcli to PATH"; GroupDescription: "Additional tasks:"; Flags: unchecked
+Name: "addtopath"; Description: "Add hubcli to your PATH"; GroupDescription: "Additional tasks:"; Flags: unchecked
 
 [Files]
 Source: "{#StageRoot}\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion createallsubdirs
@@ -39,12 +42,9 @@ Name: "{group}\hubcli"; Filename: "{app}\hubcli.cmd"
 Name: "{group}\Uninstall hubcli"; Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{app}\hubcli.cmd"; Parameters: "doctor"; Description: "Run hubcli doctor"; Flags: postinstall nowait skipifsilent unchecked
+Filename: "{app}\hubcli.cmd"; Parameters: "doctor"; Description: "Run hubcli doctor now"; Flags: postinstall nowait skipifsilent unchecked
 
 [Code]
-const
-  EnvironmentKey = 'SYSTEM\CurrentControlSet\Control\Session Manager\Environment';
-
 procedure AddDirToPath(Dir: string);
 var
   PathValue: string;

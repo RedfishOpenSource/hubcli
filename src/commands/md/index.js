@@ -10,6 +10,34 @@ import { createHtmlDocument } from '../../render/html-template.js';
 import { startStaticServer } from '../../render/temp-server.js';
 
 const MERMAID_SCRIPT_SOURCE = getMermaidScriptPath();
+const IMAGE_TAG_PATTERN = /<img\b([^>]*?)\bsrc=(['"])(.*?)\2([^>]*)>/gi;
+
+function isRewritableImageSource(source) {
+  if (!source) {
+    return false;
+  }
+
+  if (/^[a-zA-Z]:[\\/]/.test(source) || source.startsWith('\\\\')) {
+    return true;
+  }
+
+  if (source.startsWith('#') || source.startsWith('//') || source.startsWith('/')) {
+    return false;
+  }
+
+  return !/^[a-zA-Z][a-zA-Z\d+.-]*:/.test(source);
+}
+
+function rewriteImageSources(html) {
+  return html.replace(IMAGE_TAG_PATTERN, (match, before, quote, source, after) => {
+    if (!isRewritableImageSource(source)) {
+      return match;
+    }
+
+    const rewrittenSource = `/__hubcli_asset__?path=${encodeURIComponent(source)}`;
+    return `<img${before}src=${quote}${rewrittenSource}${quote}${after}>`;
+  });
+}
 
 export default {
   name: 'md',
@@ -39,7 +67,7 @@ export default {
     };
   },
   async runNode(args, prepared) {
-    const htmlBody = marked.parse(prepared.markdown);
+    const htmlBody = rewriteImageSources(marked.parse(prepared.markdown));
     const tempDir = await mkdtemp(path.join(os.tmpdir(), 'hubcli-'));
     const htmlPath = path.join(tempDir, 'document.html');
     const mermaidScriptPath = '/mermaid.min.js';
@@ -57,7 +85,9 @@ export default {
         await writeFile(path.join(tempDir, 'mermaid.min.js'), mermaidScriptContents, 'utf8');
       }
 
-      const server = await startStaticServer(tempDir);
+      const server = await startStaticServer(tempDir, {
+        assetRootDirectory: path.dirname(args.inputPath)
+      });
       let browser;
       try {
         browser = await chromium.launch({ headless: true });
