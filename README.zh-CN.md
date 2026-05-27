@@ -20,6 +20,7 @@
 - `hubcli minio ...`
 - `hubcli nacos ...`
 - `hubcli mysql ...`
+- `hubcli redis ...`
 
 ## 主要特性
 
@@ -186,6 +187,7 @@ hubcli md ./examples/sample-er.md ./out/er.pdf
 - RocketMQ4 Worker 是否能启动并解析配置
 - MQTT Worker 是否能启动并解析配置
 - MinIO Worker 是否能启动并解析配置
+- Redis Worker 是否能启动并解析配置
 
 ### `hubcli xmind <input> <output>`
 
@@ -469,6 +471,41 @@ hubcli mysql query run --host 127.0.0.1 --port 3306 --user root --pass secret --
 hubcli mysql export query --host 127.0.0.1 --port 3306 --user root --pass secret --database app_db --sql "SELECT * FROM users" --format csv --output ./out/users.csv
 ```
 
+### `hubcli redis ...`
+
+提供 Redis 连接检查、服务信息与 key/value 操作能力。
+
+当前子命令范围：
+
+- `ping`
+- `info`
+- `dbsize`
+- `key scan`、`key get`、`key set`、`key delete`、`key exists`、`key ttl`、`key expire`
+
+常用环境变量：
+
+- `HUBCLI_REDIS_URL`
+- `HUBCLI_REDIS_HOST`
+- `HUBCLI_REDIS_PORT`
+- `HUBCLI_REDIS_USERNAME`
+- `HUBCLI_REDIS_PASSWORD`
+- `HUBCLI_REDIS_DATABASE`
+- `HUBCLI_REDIS_TIMEOUT`
+- `HUBCLI_REDIS_TLS_CA`
+- `HUBCLI_REDIS_TLS_CERT`
+- `HUBCLI_REDIS_TLS_KEY`
+
+示例：
+
+```bash
+hubcli redis --help
+hubcli redis ping --host 127.0.0.1 --port 6379
+hubcli redis key set hubcli:test --host 127.0.0.1 --value "hello"
+hubcli redis key get hubcli:test --host 127.0.0.1
+hubcli redis key scan --host 127.0.0.1 --pattern "hubcli:*" --limit 10
+hubcli redis key delete hubcli:test --host 127.0.0.1
+```
+
 ## 打包说明
 
 - 对外发布的 CLI 入口是 `bin/hubcli.js`
@@ -510,4 +547,4 @@ npx playwright install chromium
 
 ### Python 集成依赖未安装
 
-Python Worker 依赖定义在 `python/pyproject.toml` 中。使用 RabbitMQ、RocketMQ4、MQTT、MinIO、Nacos、MySQL 相关命令前，需要先在当前 Python 环境中安装对应依赖。
+Python Worker 依赖定义在 `python/pyproject.toml` 中。使用 RabbitMQ、RocketMQ4、MQTT、MinIO、Nacos、MySQL、Redis 相关命令前，需要先在当前 Python 环境中安装对应依赖。

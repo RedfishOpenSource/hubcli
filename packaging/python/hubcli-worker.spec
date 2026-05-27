@@ -16,6 +16,7 @@ hiddenimports = [
     'hubcli_worker.commands.mysql',
     'hubcli_worker.commands.nacos',
     'hubcli_worker.commands.rabbitmq',
+    'hubcli_worker.commands.redis',
     'hubcli_worker.commands.rocketmq4',
     'hubcli_worker.commands.xmind',
     'hubcli_worker.tasks.arthas.boot',

@@ -7,6 +7,7 @@ import mqttCommand from '../commands/mqtt/index.js';
 import mysqlCommand from '../commands/mysql/index.js';
 import nacosCommand from '../commands/nacos/index.js';
 import rabbitmqCommand from '../commands/rabbitmq/index.js';
+import redisCommand from '../commands/redis/index.js';
 import rocketmq4Command from '../commands/rocketmq4/index.js';
 import xmindCommand from '../commands/xmind/index.js';
 
@@ -20,7 +21,8 @@ const COMMAND_DEFINITIONS = [
   mqttCommand,
   minioCommand,
   nacosCommand,
-  mysqlCommand
+  mysqlCommand,
+  redisCommand
 ];
 
 function applyArguments(command, definition) {

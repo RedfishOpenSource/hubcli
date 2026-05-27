@@ -104,6 +104,20 @@ export default {
       }
     }
 
+    try {
+      const result = await runPythonCommand({ command: 'redis', args: { operation: 'ping', options: {} } });
+      console.log(pc.green(`Redis worker is available: ${result.host || 'configured endpoint'}.`));
+    } catch (error) {
+      const message = getErrorMessage(error);
+      if (message.includes('Redis connection is required')) {
+        console.log(pc.yellow('Redis worker dependencies are available. Configure `--url` or `--host` before connecting.'));
+      } else if (message.includes("No module named 'redis'") || message.includes('Missing Python dependency: redis')) {
+        console.log(pc.yellow('Redis dependency `redis` is missing in the current Python environment.'));
+      } else {
+        console.log(pc.yellow(`Redis worker check skipped: ${message}`));
+      }
+    }
+
     console.log(pc.green('Node CLI and Python worker look ready.'));
   }
 };

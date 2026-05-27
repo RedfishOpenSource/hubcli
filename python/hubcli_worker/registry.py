@@ -12,6 +12,7 @@ COMMAND_MODULES = {
     'minio': 'hubcli_worker.commands.minio',
     'nacos': 'hubcli_worker.commands.nacos',
     'mysql': 'hubcli_worker.commands.mysql',
+    'redis': 'hubcli_worker.commands.redis',
 }
 
 

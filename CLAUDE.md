@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - The repository now contains an initial implementation scaffold for `hubcli`.
 - The current toolchain is split between a Node.js CLI package and a Python worker package.
-- The current user-facing commands are `xmind`, `md`, `doctor`, and the grouped `rabbitmq`, `rocketmq4`, `mqtt`, `minio`, `nacos`, and `mysql` commands.
+- The current user-facing commands are `xmind`, `md`, `doctor`, and the grouped `rabbitmq`, `rocketmq4`, `mqtt`, `minio`, `nacos`, `mysql`, and `redis` commands.
 
 ## Commands
 
@@ -47,6 +47,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `python/hubcli_worker/tasks/minio/` stores MinIO bucket and object task logic.
 - `python/hubcli_worker/tasks/nacos/` stores Nacos query task logic.
 - `python/hubcli_worker/tasks/mysql/` stores MySQL query, execution, and export task logic.
+- `python/hubcli_worker/tasks/redis/` stores Redis connectivity, server info, and key/value task logic.
 - `src/render/html-template.js` injects document styling and Mermaid rendering support.
 
 ## Command Organization

@@ -20,6 +20,7 @@ Current command families:
 - `hubcli minio ...`
 - `hubcli nacos ...`
 - `hubcli mysql ...`
+- `hubcli redis ...`
 
 ## Features
 
@@ -183,6 +184,7 @@ Current checks include:
 - RocketMQ4 worker startup and config parsing
 - MQTT worker startup and config parsing
 - MinIO worker startup and config parsing
+- Redis worker startup and config parsing
 
 ### `hubcli xmind <input> <output>`
 
@@ -466,6 +468,41 @@ hubcli mysql query run --host 127.0.0.1 --port 3306 --user root --pass secret --
 hubcli mysql export query --host 127.0.0.1 --port 3306 --user root --pass secret --database app_db --sql "SELECT * FROM users" --format csv --output ./out/users.csv
 ```
 
+### `hubcli redis ...`
+
+Redis connectivity, server info, and key/value operations.
+
+Current subcommand areas:
+
+- `ping`
+- `info`
+- `dbsize`
+- `key scan`, `key get`, `key set`, `key delete`, `key exists`, `key ttl`, `key expire`
+
+Common environment variables:
+
+- `HUBCLI_REDIS_URL`
+- `HUBCLI_REDIS_HOST`
+- `HUBCLI_REDIS_PORT`
+- `HUBCLI_REDIS_USERNAME`
+- `HUBCLI_REDIS_PASSWORD`
+- `HUBCLI_REDIS_DATABASE`
+- `HUBCLI_REDIS_TIMEOUT`
+- `HUBCLI_REDIS_TLS_CA`
+- `HUBCLI_REDIS_TLS_CERT`
+- `HUBCLI_REDIS_TLS_KEY`
+
+Examples:
+
+```bash
+hubcli redis --help
+hubcli redis ping --host 127.0.0.1 --port 6379
+hubcli redis key set hubcli:test --host 127.0.0.1 --value "hello"
+hubcli redis key get hubcli:test --host 127.0.0.1
+hubcli redis key scan --host 127.0.0.1 --pattern "hubcli:*" --limit 10
+hubcli redis key delete hubcli:test --host 127.0.0.1
+```
+
 ## Packaging Notes
 
 - The published CLI entrypoint is `bin/hubcli.js`
@@ -507,4 +544,4 @@ npx playwright install chromium
 
 ### Python integration dependencies are missing
 
-The Python worker depends on packages declared in `python/pyproject.toml`. Install them in the active Python environment before using RabbitMQ, RocketMQ4, MQTT, MinIO, Nacos, or MySQL related commands.
+The Python worker depends on packages declared in `python/pyproject.toml`. Install them in the active Python environment before using RabbitMQ, RocketMQ4, MQTT, MinIO, Nacos, MySQL, or Redis related commands.
