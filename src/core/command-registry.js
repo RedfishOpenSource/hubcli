@@ -9,6 +9,7 @@ import nacosCommand from '../commands/nacos/index.js';
 import rabbitmqCommand from '../commands/rabbitmq/index.js';
 import redisCommand from '../commands/redis/index.js';
 import rocketmq4Command from '../commands/rocketmq4/index.js';
+import windowsCommand from '../commands/windows/index.js';
 import xmindCommand from '../commands/xmind/index.js';
 
 const COMMAND_DEFINITIONS = [
@@ -22,7 +23,8 @@ const COMMAND_DEFINITIONS = [
   minioCommand,
   nacosCommand,
   mysqlCommand,
-  redisCommand
+  redisCommand,
+  windowsCommand
 ];
 
 function applyArguments(command, definition) {

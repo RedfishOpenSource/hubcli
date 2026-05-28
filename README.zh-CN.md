@@ -21,6 +21,7 @@
 - `hubcli nacos ...`
 - `hubcli mysql ...`
 - `hubcli redis ...`
+- `hubcli windows ...`
 
 ## 主要特性
 
@@ -173,6 +174,14 @@ hubcli md ./examples/sample-flowchart.md ./out/flowchart.pdf
 hubcli md ./examples/sample-er.md ./out/er.pdf
 ```
 
+### Windows 桌面截图
+
+```bash
+hubcli windows screenshot ./out/screenshot.png
+hubcli windows screenshot ./out/all.png --all
+hubcli windows screenshot ./out/monitor1.png --monitor 1
+```
+
 ## 命令说明
 
 ### `hubcli doctor`
@@ -220,6 +229,27 @@ hubcli md ./examples/sample-er.md ./out/er.pdf
 - 导出 PDF 到目标路径
 - 输出目录不存在时自动创建
 - 输出文件没有 `.pdf` 后缀时自动补全
+
+### `hubcli windows screenshot [output]`
+
+把 Windows 桌面截图保存为 PNG 文件。
+
+当前行为：
+
+- 仅支持 Windows 桌面会话
+- 默认截取所有显示器组成的虚拟桌面
+- 省略 `output` 时，会在当前目录创建 `screenshot-YYYYMMDD-HHMMSS.png`
+- 输出文件没有 `.png` 后缀时自动补全
+- 输出目录不存在时自动创建
+- 使用 `--monitor <index>` 截取指定的 1-based 显示器编号
+
+示例：
+
+```bash
+hubcli windows screenshot
+hubcli windows screenshot ./out/screenshot.png
+hubcli windows screenshot ./out/monitor2.png --monitor 2
+```
 
 ### `hubcli arthas --pid <pid> <arthasArgs...>`
 

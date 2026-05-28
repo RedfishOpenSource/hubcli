@@ -13,6 +13,7 @@ COMMAND_MODULES = {
     'nacos': 'hubcli_worker.commands.nacos',
     'mysql': 'hubcli_worker.commands.mysql',
     'redis': 'hubcli_worker.commands.redis',
+    'windows': 'hubcli_worker.commands.windows',
 }
 
 

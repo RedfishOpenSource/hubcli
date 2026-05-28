@@ -21,6 +21,7 @@ Current command families:
 - `hubcli nacos ...`
 - `hubcli mysql ...`
 - `hubcli redis ...`
+- `hubcli windows ...`
 
 ## Features
 
@@ -170,6 +171,14 @@ hubcli md ./examples/sample-flowchart.md ./out/flowchart.pdf
 hubcli md ./examples/sample-er.md ./out/er.pdf
 ```
 
+### Capture the Windows desktop
+
+```bash
+hubcli windows screenshot ./out/screenshot.png
+hubcli windows screenshot ./out/all.png --all
+hubcli windows screenshot ./out/monitor1.png --monitor 1
+```
+
 ## Command Guide
 
 ### `hubcli doctor`
@@ -217,6 +226,27 @@ Behavior:
 - exports PDF to the output path
 - creates the output directory when needed
 - appends `.pdf` if the output file has no `.pdf` suffix
+
+### `hubcli windows screenshot [output]`
+
+Captures the Windows desktop to a PNG file.
+
+Behavior:
+
+- supports Windows desktop sessions only
+- captures the full virtual desktop across all monitors by default
+- creates a timestamped `screenshot-YYYYMMDD-HHMMSS.png` in the current directory when `output` is omitted
+- appends `.png` if the output path has no `.png` suffix
+- creates the output directory when needed
+- use `--monitor <index>` to capture a specific 1-based monitor index
+
+Examples:
+
+```bash
+hubcli windows screenshot
+hubcli windows screenshot ./out/screenshot.png
+hubcli windows screenshot ./out/monitor2.png --monitor 2
+```
 
 ### `hubcli arthas --pid <pid> <arthasArgs...>`
 

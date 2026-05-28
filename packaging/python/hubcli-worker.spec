@@ -18,12 +18,14 @@ hiddenimports = [
     'hubcli_worker.commands.rabbitmq',
     'hubcli_worker.commands.redis',
     'hubcli_worker.commands.rocketmq4',
+    'hubcli_worker.commands.windows',
     'hubcli_worker.commands.xmind',
     'hubcli_worker.tasks.arthas.boot',
     'hubcli_worker.tasks.arthas.http_client',
     'hubcli_worker.tasks.arthas.models',
     'hubcli_worker.tasks.arthas.operations',
     'hubcli_worker.tasks.arthas.runtime',
+    'hubcli_worker.tasks.windows.screenshot',
 ]
 
 datas = [
