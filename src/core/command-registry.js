@@ -1,6 +1,7 @@
 import { executeCommand } from './execute-command.js';
 import arthasCommand from '../commands/arthas/index.js';
 import doctorCommand from '../commands/doctor/index.js';
+import httpCommand from '../commands/http/index.js';
 import markdownCommand from '../commands/md/index.js';
 import minioCommand from '../commands/minio/index.js';
 import mqttCommand from '../commands/mqtt/index.js';
@@ -17,6 +18,7 @@ const COMMAND_DEFINITIONS = [
   markdownCommand,
   doctorCommand,
   arthasCommand,
+  httpCommand,
   rabbitmqCommand,
   rocketmq4Command,
   mqttCommand,
