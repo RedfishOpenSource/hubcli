@@ -174,13 +174,21 @@ hubcli md ./examples/sample-flowchart.md ./out/flowchart.pdf
 hubcli md ./examples/sample-er.md ./out/er.pdf
 ```
 
-### Windows 桌面截图
+### 管理本地 HTTP 请求定义
 
 ```bash
-hubcli windows screenshot ./out/screenshot.png
-hubcli windows screenshot ./out/all.png --all
-hubcli windows screenshot ./out/monitor1.png --monitor 1
+hubcli http init
+hubcli http import user/get-user
+hubcli http run user/get-user
 ```
+
+`hubcli http import` 当前行为：
+
+- 先提示选择导入类型，目前支持 `curl`
+- 等待粘贴具体的 curl 请求
+- 把导入后的请求保存到本地 HTTP workspace，即 `./http/<name>.http.json`
+- 目标目录不存在时自动创建
+- 后续可通过 `hubcli http run <name>` 执行保存后的请求
 
 ## 命令说明
 

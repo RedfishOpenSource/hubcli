@@ -171,13 +171,21 @@ hubcli md ./examples/sample-flowchart.md ./out/flowchart.pdf
 hubcli md ./examples/sample-er.md ./out/er.pdf
 ```
 
-### Capture the Windows desktop
+### Manage local HTTP request definitions
 
 ```bash
-hubcli windows screenshot ./out/screenshot.png
-hubcli windows screenshot ./out/all.png --all
-hubcli windows screenshot ./out/monitor1.png --monitor 1
+hubcli http init
+hubcli http import user/get-user
+hubcli http run user/get-user
 ```
+
+`hubcli http import` behavior:
+
+- prompts you to choose an import type, currently `curl`
+- waits for you to paste a curl command
+- saves the imported request into the local HTTP workspace as `./http/<name>.http.json`
+- creates parent directories when needed
+- lets you run the saved request later with `hubcli http run <name>`
 
 ## Command Guide
 

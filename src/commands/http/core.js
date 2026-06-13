@@ -9,6 +9,304 @@ export const DEFAULT_ROOT = './http';
 const DEFAULT_METHOD = 'GET';
 const VALID_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
+const HTTP_IMPORT_TYPES = [
+  { value: 'curl', label: 'curl' }
+];
+
+function splitCurlInput(source) {
+  return String(source || '')
+    .replace(/\\\r?\n/g, ' ')
+    .replace(/\r?\n/g, ' ')
+    .trim();
+}
+
+export function tokenizeShellCommand(source) {
+  const input = splitCurlInput(source);
+  const tokens = [];
+  let current = '';
+  let quote = null;
+  let escaping = false;
+
+  for (let index = 0; index < input.length; index += 1) {
+    const char = input[index];
+
+    if (escaping) {
+      current += char;
+      escaping = false;
+      continue;
+    }
+
+    if (char === '\\' && quote !== '\'') {
+      escaping = true;
+      continue;
+    }
+
+    if (quote) {
+      if (char === quote) {
+        quote = null;
+      } else {
+        current += char;
+      }
+      continue;
+    }
+
+    if (char === '\'' || char === '"') {
+      quote = char;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      if (current) {
+        tokens.push(current);
+        current = '';
+      }
+      continue;
+    }
+
+    current += char;
+  }
+
+  if (escaping) {
+    current += '\\';
+  }
+  if (quote) {
+    throw new Error('Unterminated quoted string in curl command.');
+  }
+  if (current) {
+    tokens.push(current);
+  }
+  return tokens;
+}
+
+export function getHttpImportTypes() {
+  return HTTP_IMPORT_TYPES.map((item) => ({ ...item }));
+}
+
+export function normalizeImportType(type) {
+  const normalized = String(type || '').trim().toLowerCase();
+  if (!normalized) {
+    throw new Error('Import type is required.');
+  }
+  if (!HTTP_IMPORT_TYPES.some((item) => item.value === normalized)) {
+    throw new Error(`Unsupported import type: ${type}`);
+  }
+  return normalized;
+}
+
+function parseTimeoutValue(value) {
+  const timeout = Number(value);
+  if (!Number.isFinite(timeout)) {
+    throw new Error(`Invalid curl timeout: ${value}`);
+  }
+  return timeout;
+}
+
+function parseCurlBody(values) {
+  if (values.length === 0) {
+    return undefined;
+  }
+  const body = values.join('&');
+  try {
+    const parsed = JSON.parse(body);
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch {
+    // noop
+  }
+  return body;
+}
+
+function toSlug(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function toDisplayName(value) {
+  return String(value || '')
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function deriveImportNameFromRequest(definition) {
+  const method = normalizeMethod(definition.method).toLowerCase();
+  const url = new URL(definition.url);
+  const pathname = url.pathname.replace(/\/+$/, '') || '/';
+  const segments = pathname.split('/').filter(Boolean).map(toSlug).filter(Boolean);
+  const tail = segments.length > 0 ? segments.join('-') : toSlug(url.hostname) || 'request';
+  return path.posix.join('imported', `${method}-${tail}`);
+}
+
+export function resolveImportPath(nameOrPath, root) {
+  const normalizedInput = String(nameOrPath || '').trim();
+  if (!normalizedInput) {
+    throw new Error('Request name is required for import.');
+  }
+
+  const withoutExtension = normalizedInput.endsWith(REQUEST_EXTENSION)
+    ? normalizedInput.slice(0, -REQUEST_EXTENSION.length)
+    : normalizedInput;
+
+  if (!withoutExtension || withoutExtension.endsWith('.example')) {
+    throw new Error('Imported request paths cannot target example files.');
+  }
+
+  const normalizedRelativePath = withoutExtension.replace(/\\/g, '/');
+  if (normalizedRelativePath.startsWith('/') || /^[a-zA-Z]:\//.test(normalizedRelativePath)) {
+    throw new Error('Imported request path must stay inside the HTTP workspace root.');
+  }
+
+  const segments = normalizedRelativePath.split('/').filter(Boolean);
+  if (segments.length === 0 || segments.some((segment) => segment === '.' || segment === '..')) {
+    throw new Error('Imported request path must stay inside the HTTP workspace root.');
+  }
+
+  const logicalName = segments.join('/');
+  return {
+    logicalName,
+    requestPath: path.join(root, ...segments) + REQUEST_EXTENSION
+  };
+}
+
+export function parseCurlCommand(source) {
+  const tokens = tokenizeShellCommand(source);
+  if (tokens.length === 0) {
+    throw new Error('Curl input cannot be empty.');
+  }
+  if (tokens[0] !== 'curl') {
+    throw new Error('Imported curl input must start with `curl`.');
+  }
+
+  let method;
+  let url;
+  let timeout;
+  const headers = [];
+  const bodyParts = [];
+
+  for (let index = 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    const nextValue = () => {
+      index += 1;
+      if (index >= tokens.length) {
+        throw new Error(`Expected a value after ${token}.`);
+      }
+      return tokens[index];
+    };
+
+    if (token === '-X' || token === '--request') {
+      method = nextValue();
+      continue;
+    }
+    if (token === '-H' || token === '--header') {
+      headers.push(nextValue());
+      continue;
+    }
+    if (token === '-d' || token === '--data' || token === '--data-raw' || token === '--data-binary') {
+      bodyParts.push(nextValue());
+      continue;
+    }
+    if (token === '--max-time') {
+      timeout = parseTimeoutValue(nextValue());
+      continue;
+    }
+    if (token === '-F' || token === '--form' || token === '-T' || token === '--upload-file' || token === '-b' || token === '--cookie' || token === '-u' || token === '--user' || token === '-x' || token === '--proxy') {
+      throw new Error(`Unsupported curl option for import: ${token}`);
+    }
+    if (token === '--location' || token === '--compressed' || token === '--silent' || token === '--globoff' || token === '-s' || token === '-L' || token === '-k' || token === '--insecure') {
+      continue;
+    }
+    if (token.startsWith('-')) {
+      throw new Error(`Unsupported curl option for import: ${token}`);
+    }
+    if (url) {
+      throw new Error('Curl import currently supports exactly one URL argument.');
+    }
+    url = token;
+  }
+
+  if (!url) {
+    throw new Error('Curl command must include a URL.');
+  }
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (error) {
+    throw new Error(`Invalid curl URL: ${error.message}`);
+  }
+
+  const query = {};
+  for (const [key, value] of parsedUrl.searchParams.entries()) {
+    if (key in query) {
+      throw new Error(`Repeated query parameter is not supported for import: ${key}`);
+    }
+    query[key] = value;
+  }
+  parsedUrl.search = '';
+
+  const normalizedMethod = normalizeMethod(method || (bodyParts.length > 0 ? 'POST' : DEFAULT_METHOD));
+  const body = parseCurlBody(bodyParts);
+  const definition = {
+    name: toDisplayName(deriveImportNameFromRequest({ method: normalizedMethod, url: parsedUrl.toString() }).split('/').at(-1)),
+    method: normalizedMethod,
+    url: parsedUrl.toString(),
+    headers: parseEntries(headers, ':', 'curl header'),
+    query
+  };
+
+  if (body != null) {
+    definition.body = body;
+  }
+  if (timeout != null) {
+    definition.timeout = timeout;
+  }
+
+  return validateRequestDefinition(definition);
+}
+
+export function buildImportedRequestDefinition(type, source) {
+  const normalizedType = normalizeImportType(type);
+  if (normalizedType === 'curl') {
+    return parseCurlCommand(source);
+  }
+  throw new Error(`Unsupported import type: ${type}`);
+}
+
+export async function writeImportedRequestFile(requestPath, definition, options = {}) {
+  try {
+    await readFile(requestPath, 'utf8');
+    if (!options.force) {
+      throw new Error(`Request definition already exists: ${requestPath}`);
+    }
+  } catch (error) {
+    if (error?.code !== 'ENOENT') {
+      throw error;
+    }
+  }
+
+  await mkdir(path.dirname(requestPath), { recursive: true });
+  await writeFile(requestPath, JSON.stringify(definition, null, 2) + '\n', 'utf8');
+}
+
+export async function importRequestDefinition({ type, source, name, root, force = false }) {
+  const definition = buildImportedRequestDefinition(type, source);
+  const workspaceRoot = toAbsoluteRoot(root || DEFAULT_ROOT);
+  const targetName = String(name || '').trim() || deriveImportNameFromRequest(definition);
+  const { logicalName, requestPath } = resolveImportPath(targetName, workspaceRoot);
+  await writeImportedRequestFile(requestPath, definition, { force });
+  return {
+    type: normalizeImportType(type),
+    logicalName,
+    requestPath,
+    root: workspaceRoot,
+    definition
+  };
+}
+
 export const EXAMPLE_FILES = {
   'README.example.md': `# hubcli http examples\n\n1. Copy \`*.example.http.json\` files to \`*.http.json\`.\n2. Copy \`env/*.example.json\` files to \`env/*.json\`.\n3. Fill in real values such as \`baseUrl\`, \`token\`, and request variables.\n4. Run a request with \`hubcli http run user/create-user --env dev\`.\n`,
   [path.join('env', 'dev.example.json')]: JSON.stringify({

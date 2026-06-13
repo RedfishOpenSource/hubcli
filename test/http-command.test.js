@@ -5,15 +5,146 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   buildFileRequest,
+  buildImportedRequestDefinition,
   executeHttpRequest,
   formatHttpResult,
+  importRequestDefinition,
   initWorkspace,
   listRequestNames,
   normalizeRequestOptions,
   normalizeSharedOptions,
+  parseCurlCommand,
+  resolveImportPath,
   resolveRequestPath,
-  substituteTemplate
+  substituteTemplate,
+  tokenizeShellCommand
 } from '../src/commands/http/core.js';
+
+test('tokenizeShellCommand keeps quoted curl arguments intact', () => {
+  const tokens = tokenizeShellCommand("curl 'https://example.com/users?page=1' -H 'Authorization: Bearer token' -d '{\"name\":\"demo\"}'");
+  assert.deepEqual(tokens, [
+    'curl',
+    'https://example.com/users?page=1',
+    '-H',
+    'Authorization: Bearer token',
+    '-d',
+    '{"name":"demo"}'
+  ]);
+});
+
+test('parseCurlCommand maps URL, query, headers, json body, and timeout', () => {
+  const definition = parseCurlCommand(
+    "curl 'https://api.example.com/users?page=1' -X POST -H 'Authorization: Bearer token' -H 'Content-Type: application/json' --data '{\"name\":\"demo\"}' --max-time 12"
+  );
+
+  assert.equal(definition.method, 'POST');
+  assert.equal(definition.url, 'https://api.example.com/users');
+  assert.deepEqual(definition.query, { page: '1' });
+  assert.deepEqual(definition.headers, {
+    Authorization: 'Bearer token',
+    'Content-Type': 'application/json'
+  });
+  assert.deepEqual(definition.body, { name: 'demo' });
+  assert.equal(definition.timeout, 12);
+});
+
+test('parseCurlCommand infers POST for curl data payloads', () => {
+  const definition = parseCurlCommand("curl https://api.example.com/login --data 'name=demo'");
+  assert.equal(definition.method, 'POST');
+  assert.equal(definition.body, 'name=demo');
+});
+
+test('parseCurlCommand rejects unsupported multipart uploads', () => {
+  assert.throws(() => parseCurlCommand("curl https://api.example.com/upload -F 'file=@demo.txt'"), /Unsupported curl option/);
+});
+
+test('resolveImportPath keeps imported requests inside the workspace root', () => {
+  const root = path.resolve('http');
+  const resolved = resolveImportPath('folder1/folder2/demo', root);
+  assert.equal(resolved.logicalName, 'folder1/folder2/demo');
+  assert.equal(resolved.requestPath, path.join(root, 'folder1', 'folder2', 'demo.http.json'));
+  assert.throws(() => resolveImportPath('../demo', root), /inside the HTTP workspace root/);
+  assert.throws(() => resolveImportPath('demo.example', root), /example files/);
+});
+
+test('buildImportedRequestDefinition supports curl imports', () => {
+  const definition = buildImportedRequestDefinition('curl', "curl https://api.example.com/users");
+  assert.equal(definition.method, 'GET');
+  assert.equal(definition.url, 'https://api.example.com/users');
+});
+
+test('importRequestDefinition writes a runnable request definition', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'hubcli-http-import-'));
+  const result = await importRequestDefinition({
+    type: 'curl',
+    source: "curl 'https://api.example.com/users/1001?page=1' -H 'Authorization: Bearer token'",
+    name: 'user/detail',
+    root
+  });
+
+  const saved = JSON.parse(await readFile(result.requestPath, 'utf8'));
+  assert.equal(result.logicalName, 'user/detail');
+  assert.equal(saved.method, 'GET');
+  assert.equal(saved.url, 'https://api.example.com/users/1001');
+  assert.deepEqual(saved.query, { page: '1' });
+  assert.deepEqual(saved.headers, { Authorization: 'Bearer token' });
+
+  const built = await buildFileRequest('user/detail', {
+    root,
+    headers: {},
+    query: {},
+    vars: {},
+    json: false,
+    insecure: false
+  });
+  assert.equal(built.request.url, 'https://api.example.com/users/1001');
+});
+
+test('importRequestDefinition derives a logical name when name is omitted', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'hubcli-http-import-derived-'));
+  const result = await importRequestDefinition({
+    type: 'curl',
+    source: "curl 'https://api.example.com/users?page=1'"
+  , root });
+
+  assert.equal(result.logicalName, 'imported/get-users');
+  assert.equal(path.basename(result.requestPath), 'get-users.http.json');
+
+  const saved = JSON.parse(await readFile(result.requestPath, 'utf8'));
+  assert.equal(saved.url, 'https://api.example.com/users');
+  assert.deepEqual(saved.query, { page: '1' });
+});
+
+test('importRequestDefinition rejects overwriting unless force is enabled', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'hubcli-http-import-force-'));
+  await importRequestDefinition({
+    type: 'curl',
+    source: 'curl https://api.example.com/users',
+    name: 'user/list',
+    root
+  });
+
+  await assert.rejects(
+    () => importRequestDefinition({
+      type: 'curl',
+      source: 'curl https://api.example.com/orders',
+      name: 'user/list',
+      root
+    }),
+    /already exists/
+  );
+
+  await importRequestDefinition({
+    type: 'curl',
+    source: 'curl https://api.example.com/orders',
+    name: 'user/list',
+    root,
+    force: true
+  });
+
+  const saved = JSON.parse(await readFile(path.join(root, 'user', 'list.http.json'), 'utf8'));
+  assert.equal(saved.url, 'https://api.example.com/orders');
+});
 
 test('normalizeRequestOptions parses method, json body, headers, query, and timeout', () => {
   const options = normalizeRequestOptions({
