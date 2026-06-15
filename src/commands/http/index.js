@@ -1,6 +1,7 @@
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import { getHttpImportTypes, importRequestDefinition, initWorkspace, listRequestNames, runRequest, sendRequest } from './core.js';
+import { runInteractiveHttp } from './interactive.js';
 import { sharedOptions, sendOptions } from './shared-options.js';
 
 async function readStdinToEnd() {
@@ -91,6 +92,14 @@ export default {
   type: 'group',
   name: 'http',
   description: 'HTTP request operations.',
+  runtime: 'node',
+  options: [
+    { flags: '--root <dir>', description: 'request workspace root directory' },
+    { flags: '--env <name>', description: 'environment file name under env/' }
+  ],
+  async runNode(args) {
+    await runInteractiveHttp(args.options ?? {});
+  },
   subcommands: [
     {
       type: 'command',

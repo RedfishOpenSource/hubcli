@@ -507,6 +507,24 @@ export function resolveRequestPath(nameOrPath, root) {
   return path.resolve(root, `${nameOrPath}${REQUEST_EXTENSION}`);
 }
 
+export async function listEnvironmentNames(root) {
+  const envRoot = path.join(toAbsoluteRoot(root || DEFAULT_ROOT), 'env');
+  let entries;
+  try {
+    entries = await readdir(envRoot, { withFileTypes: true });
+  } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return [];
+    }
+    throw error;
+  }
+
+  return entries
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.json') && !entry.name.endsWith('.example.json'))
+    .map((entry) => entry.name.slice(0, -'.json'.length))
+    .sort();
+}
+
 export async function loadEnvironment(root, envName) {
   if (!envName) {
     return {};

@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -10,6 +11,7 @@ import {
   formatHttpResult,
   importRequestDefinition,
   initWorkspace,
+  listEnvironmentNames,
   listRequestNames,
   normalizeRequestOptions,
   normalizeSharedOptions,
@@ -19,6 +21,13 @@ import {
   substituteTemplate,
   tokenizeShellCommand
 } from '../src/commands/http/core.js';
+import {
+  buildDirectRequestDefinition,
+  formatRequestPreview,
+  parseConfirm,
+  runInteractiveHttp,
+  saveDirectRequestDefinition
+} from '../src/commands/http/interactive.js';
 
 test('tokenizeShellCommand keeps quoted curl arguments intact', () => {
   const tokens = tokenizeShellCommand("curl 'https://example.com/users?page=1' -H 'Authorization: Bearer token' -d '{\"name\":\"demo\"}'");
@@ -286,4 +295,142 @@ test('executeHttpRequest builds structured results and supports json payloads', 
   assert.equal(result.status, 200);
   assert.deepEqual(result.data, { ok: true });
   assert.match(formatHttpResult(result), /HTTP 200 OK/);
+});
+
+test('listEnvironmentNames returns real env files only', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'hubcli-http-env-'));
+  await mkdir(path.join(root, 'env'), { recursive: true });
+  await writeFile(path.join(root, 'env', 'dev.json'), '{}', 'utf8');
+  await writeFile(path.join(root, 'env', 'prod.json'), '{}', 'utf8');
+  await writeFile(path.join(root, 'env', 'test.example.json'), '{}', 'utf8');
+
+  assert.deepEqual(await listEnvironmentNames(root), ['dev', 'prod']);
+});
+
+test('listEnvironmentNames returns an empty list when env directory is missing', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'hubcli-http-env-missing-'));
+
+  assert.deepEqual(await listEnvironmentNames(root), []);
+});
+
+test('buildDirectRequestDefinition maps interactive direct request options', () => {
+  const definition = buildDirectRequestDefinition('https://api.example.com/users', {
+    method: 'post',
+    jsonBody: '{"name":"demo"}',
+    header: ['Authorization: Bearer token'],
+    query: ['source=hubcli'],
+    timeout: '15'
+  });
+
+  assert.equal(definition.method, 'POST');
+  assert.equal(definition.url, 'https://api.example.com/users');
+  assert.deepEqual(definition.headers, { Authorization: 'Bearer token' });
+  assert.deepEqual(definition.query, { source: 'hubcli' });
+  assert.deepEqual(definition.body, { name: 'demo' });
+  assert.equal(definition.timeout, 15);
+});
+
+test('saveDirectRequestDefinition writes a safe runnable request file', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'hubcli-http-save-direct-'));
+  const definition = buildDirectRequestDefinition('https://api.example.com/users', { method: 'get' });
+  const result = await saveDirectRequestDefinition(definition, root, 'user/list');
+
+  assert.equal(result.logicalName, 'user/list');
+  assert.equal(result.requestPath, path.join(root, 'user', 'list.http.json'));
+  const saved = JSON.parse(await readFile(result.requestPath, 'utf8'));
+  assert.equal(saved.method, 'GET');
+  assert.equal(saved.url, 'https://api.example.com/users');
+});
+
+test('formatRequestPreview masks sensitive headers', () => {
+  const preview = formatRequestPreview({
+    method: 'GET',
+    url: 'https://api.example.com/users',
+    headers: {
+      Authorization: 'Bearer secret-token',
+      'X-Test': 'visible'
+    },
+    query: {}
+  });
+
+  assert.match(preview, /Authorization/);
+  assert.match(preview, /<hidden>/);
+  assert.match(preview, /visible/);
+  assert.doesNotMatch(preview, /secret-token/);
+});
+
+test('parseConfirm understands yes, no, and defaults', () => {
+  assert.equal(parseConfirm('y'), true);
+  assert.equal(parseConfirm('yes'), true);
+  assert.equal(parseConfirm('n'), false);
+  assert.equal(parseConfirm('no'), false);
+  assert.equal(parseConfirm('', true), true);
+  assert.equal(parseConfirm('wat', false), false);
+});
+
+test('runInteractiveHttp defaults to running a saved request and confirms before executing', async () => {
+  const answers = ['', './http', '1', '', '', '', '', '', '', 'y'];
+  const rl = {
+    async question() {
+      return answers.shift() ?? '';
+    },
+    close() {}
+  };
+  const calls = [];
+
+  await runInteractiveHttp({}, {
+    rl,
+    async listRequestNames() {
+      return ['user/detail'];
+    },
+    async listEnvironmentNames() {
+      return [];
+    },
+    async buildFileRequest(name, options) {
+      calls.push(['buildFileRequest', name, options]);
+      return {
+        request: {
+          method: 'GET',
+          url: 'https://api.example.com/users/1001',
+          headers: {},
+          query: {},
+          timeout: 5
+        }
+      };
+    },
+    async runRequest(name, options) {
+      calls.push(['runRequest', name, options]);
+    }
+  });
+
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0][0], 'buildFileRequest');
+  assert.equal(calls[0][1], 'user/detail');
+  assert.equal(calls[0][2].root, './http');
+  assert.equal(calls[1][0], 'runRequest');
+  assert.equal(calls[1][1], 'user/detail');
+  assert.deepEqual(calls[1][2], { root: './http' });
+});
+test('bare http command enters interactive mode instead of showing help', async () => {
+  const result = await new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['./bin/hubcli.js', 'http'], {
+      cwd: path.resolve('.'),
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.setEncoding('utf8');
+    child.stderr.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (code) => resolve({ code, stdout, stderr }));
+  });
+
+  assert.equal(result.code, 1);
+  assert.match(result.stderr, /Interactive HTTP mode requires a TTY/);
 });

@@ -50,10 +50,16 @@ function collectArgs(definition, actionArgs) {
   );
 
   if ((definition.options ?? []).length > 0) {
-    args.options = commanderCommand?.opts?.() ?? {};
+    args.options = commanderCommand?.optsWithGlobals?.() ?? commanderCommand?.opts?.() ?? {};
   }
 
   return args;
+}
+
+function attachAction(command, definition) {
+  command.action(async (...actionArgs) => {
+    await executeCommand(definition, collectArgs(definition, actionArgs));
+  });
 }
 
 function registerCommand(program, definition) {
@@ -63,13 +69,19 @@ function registerCommand(program, definition) {
   if (definition.configure) {
     definition.configure(command);
   }
-  command.action(async (...actionArgs) => {
-    await executeCommand(definition, collectArgs(definition, actionArgs));
-  });
+  attachAction(command, definition);
 }
 
 function registerGroup(program, definition) {
   const group = program.command(definition.name).description(definition.description);
+  applyArguments(group, definition);
+  applyOptions(group, definition);
+  if (definition.configure) {
+    definition.configure(group);
+  }
+  if (definition.runtime) {
+    attachAction(group, definition);
+  }
   for (const subcommand of definition.subcommands ?? []) {
     registerDefinition(group, subcommand);
   }
